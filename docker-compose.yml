@@ -1,0 +1,33 @@
+# =============================================
+# InspectIQ — Docker Compose (Local Development)
+# =============================================
+# This file will be expanded as services are built.
+# For now it provides the PostgreSQL database only.
+# =============================================
+
+services:
+  # --- PostgreSQL ---
+  postgres:
+    image: postgres:16-alpine
+    container_name: inspectiq-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_DOCKER_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-inspectiq}
+      POSTGRES_USER: ${POSTGRES_USER:-inspectiq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-inspectiq_dev}
+    volumes:
+      - inspectiq-pgdata:/var/lib/postgresql/data
+
+  # --- ingestion-service ---
+  # TODO: add once Spring Boot project is initialised
+
+  # --- analytics-service ---
+  # TODO: add once Spring Boot project is initialised
+
+  # --- alert-service ---
+  # TODO: add once Spring Boot project is initialised
+
+volumes:
+  inspectiq-pgdata:

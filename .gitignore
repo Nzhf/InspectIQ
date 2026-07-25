@@ -1,0 +1,78 @@
+# =============================================
+# InspectIQ — Mixed Java/Gradle + Angular/Node
+# =============================================
+
+# ---------- Environment / Secrets ----------
+.env
+.env.local
+.env.*.local
+
+# ---------- Java / Gradle ----------
+# Compiled class files
+*.class
+
+# Gradle build output
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Gradle cache & local config
+.gradle/
+gradle.properties
+
+# ---------- Spring Boot ----------
+# DevTools restart trigger
+.reloadTriggerFile
+
+# ---------- Node / Angular ----------
+node_modules/
+dist/
+.angular/
+.pnp.*
+.yarn/
+
+# Coverage & test reports
+coverage/
+
+# ---------- IDE / Editor ----------
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# ---------- OS ----------
+# macOS
+.DS_Store
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# ---------- Logs ----------
+*.log
+logs/
+
+# ---------- Docker ----------
+# Ignore local override compose files
+docker-compose.override.yml
+
+# ---------- Misc ----------
+*.swp
+*.swo
+*.bak
+*.tmp
