@@ -53,8 +53,18 @@ AOI Station / Test Client
 ## Database
 
 - **Engine:** PostgreSQL
-- **Schema management:** Flyway (versioned SQL migrations checked into each service that owns tables).
-- **Shared vs. separate databases:** For simplicity in this portfolio project, all services share a single PostgreSQL database but use separate schemas or clear table-ownership boundaries. A production system would likely use a database-per-service pattern.
+- **Schema management:** Flyway (versioned SQL migrations managed by the `ingestion-service`).
+- **Shared vs. separate databases:** For simplicity in this portfolio project, all services share a single PostgreSQL database. A production system would likely use a database-per-service pattern.
+
+### Data Model (ER Description)
+- **`production_batches`**: Represents a production run. Contains `id` (UUID, PK), `batch_code` (Unique), `product_name`, `started_at`, `completed_at`, and `status`.
+- **`defect_types`**: A lookup table for standard defect categories. Contains `id` (SERIAL, PK), `code` (Unique), and `description`.
+- **`inspection_results`**: Individual unit inspection outcomes. Contains `id` (UUID, PK), `batch_id` (FK to `production_batches`), `result` ('PASS'/'FAIL'), `inspected_at`, `defect_type_id` (FK to `defect_types`, Nullable), and `raw_data` (JSONB).
+
+**Relationships & Integrity:**
+- An inspection result must belong to a batch (`batch_id` is NOT NULL).
+- If an inspection result is 'PASS', the `defect_type_id` must be NULL (enforced via CHECK constraint).
+- Deleting a batch or defect type is restricted if it is referenced by any inspection result (enforced via ON DELETE RESTRICT).
 
 ---
 

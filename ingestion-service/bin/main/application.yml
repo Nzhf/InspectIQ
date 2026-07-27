@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: ingestion-service
+  datasource:
+    url: ${INGESTION_SERVICE_DB_URL}
+    username: ${INGESTION_SERVICE_DB_USER}
+    password: ${INGESTION_SERVICE_DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    user: ${INGESTION_SERVICE_DB_USER}
+    password: ${INGESTION_SERVICE_DB_PASSWORD}
+    url: ${INGESTION_SERVICE_DB_URL}
+
+server:
+  port: ${INGESTION_SERVICE_PORT:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
