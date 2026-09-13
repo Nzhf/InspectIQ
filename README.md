@@ -84,14 +84,18 @@ docker compose up -d
 cd ingestion-service
 ./gradlew bootRun        # Windows: gradlew.bat bootRun
 
-# analytics-service and alert-service: coming in later phases
-# cd analytics-service && ./gradlew bootRun
-# cd alert-service && ./gradlew bootRun
+# analytics-service (implemented — see analytics-service/README.md for details)
+cd ../analytics-service
+./gradlew bootRun        # Windows: gradlew.bat bootRun
+
+# alert-service: coming in a later phase
+# cd ../alert-service && ./gradlew bootRun
 ```
 
 Once running:
 - ingestion-service API: http://localhost:8081 (Swagger UI at http://localhost:8081/swagger-ui.html)
-- Health check: http://localhost:8081/actuator/health
+- analytics-service API: http://localhost:8082 (Swagger UI at http://localhost:8082/swagger-ui.html)
+- Health check (either service): http://localhost:8081/actuator/health, http://localhost:8082/actuator/health
 
 ### 4. Run the Dashboard
 
