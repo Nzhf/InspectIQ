@@ -19,11 +19,21 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    // Telegram Bot API (we can use org.telegram:telegrambots-spring-boot-starter later)
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    // Live, browsable API reference served at /swagger-ui.html
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
     runtimeOnly 'org.postgresql:postgresql'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.junit.platform:junit-platform-launcher'
+    // Offline HTTP mock of api.telegram.org for TelegramNotifier tests
+    testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+    // Byte Buddy (used by Mockito's inline mock-maker) refuses to run on JDKs
+    // newer than it officially supports (e.g. 23+). The experimental flag is the
+    // documented workaround and keeps `gradle test` working on modern JDKs.
+    jvmArgs('-Dnet.bytebuddy.experimental=true')
 }

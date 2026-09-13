@@ -7,11 +7,35 @@ spring:
     password: ${ALERT_SERVICE_DB_PASSWORD}
   jpa:
     hibernate:
+      # Schema is owned by ingestion-service's Flyway migrations — never alter it
       ddl-auto: validate
     show-sql: true
 
 server:
   port: ${ALERT_SERVICE_PORT:8083}
+
+# Read-only by design: yield is measured straight from the shared PostgreSQL
+# schema (see YieldMetricsQuery), so there is no analytics-service dependency.
+inspectiq:
+  cors:
+    # Comma-separated allowlist; the Angular dev server runs on 4200
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
+  alert:
+    # Rolling-window yield below this % triggers a breach notification
+    yield-threshold-percent: ${ALERT_YIELD_THRESHOLD_PERCENT:95.0}
+    # Window size: the most recent N inspections (yield is measured over these)
+    lookback-inspections: ${ALERT_LOOKBACK_INSPECTIONS:200}
+    # Minimum window size before an alert can fire (avoids alerting on tiny samples)
+    min-inspections: ${ALERT_MIN_INSPECTIONS:20}
+    # Fixed delay between scheduled evaluations of the rolling window
+    check-interval-ms: ${ALERT_CHECK_INTERVAL_MS:60000}
+  telegram:
+    # Bot token from @BotFather (scaffold's telegram.bot.token, folded in here)
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    # Chat/channel id where notifications are delivered
+    chat-id: ${TELEGRAM_CHAT_ID:}
+    # API base URL — overridable for self-hosted Bot API mirrors or offline tests
+    api-base-url: ${TELEGRAM_BOT_API_BASE_URL:https://api.telegram.org}
 
 management:
   endpoints:
@@ -19,7 +43,6 @@ management:
       exposure:
         include: health,info
 
-telegram:
-  bot:
-    token: ${TELEGRAM_BOT_TOKEN}
-    chat-id: ${TELEGRAM_CHAT_ID}
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

@@ -10,7 +10,7 @@
 |---|---|
 | **ingestion-service** | Receives raw inspection results from AOI stations via REST API, validates the payload, and persists each record to PostgreSQL. This is the single entry point for all inspection data. |
 | **analytics-service** | Queries the inspection data store to compute aggregated metrics — yield rates, defect-type distributions, trend lines — and exposes them via REST endpoints consumed by the dashboard. |
-| **alert-service** | Monitors quality metrics (via polling or event) and fires alerts through the Telegram Bot API when configurable thresholds are breached (e.g., yield drops below 95%). |
+| **alert-service** | Periodically measures production yield directly from the shared PostgreSQL schema, compares it against a configurable threshold (default 95%), and notifies engineers via the Telegram Bot API on breach and recovery — without alert spam. |
 | **dashboard** | Angular single-page application that visualises inspection data, yield trends, and defect breakdowns using Chart.js / ngx-charts. Communicates with backend services over REST. |
 
 > For a deeper dive, see [`docs/architecture.md`](docs/architecture.md).
@@ -88,14 +88,17 @@ cd ingestion-service
 cd ../analytics-service
 ./gradlew bootRun        # Windows: gradlew.bat bootRun
 
-# alert-service: coming in a later phase
-# cd ../alert-service && ./gradlew bootRun
+# alert-service (implemented — see alert-service/README.md for details)
+cd ../alert-service
+./gradlew bootRun        # Windows: gradlew.bat bootRun
 ```
 
 Once running:
 - ingestion-service API: http://localhost:8081 (Swagger UI at http://localhost:8081/swagger-ui.html)
 - analytics-service API: http://localhost:8082 (Swagger UI at http://localhost:8082/swagger-ui.html)
-- Health check (either service): http://localhost:8081/actuator/health, http://localhost:8082/actuator/health
+- alert-service API: http://localhost:8083 (Swagger UI at http://localhost:8083/swagger-ui.html)
+- alert-service endpoints: `GET /api/v1/alerts/status`, `POST /api/v1/alerts/check`
+- Health check (any service): http://localhost:8081/actuator/health, http://localhost:8082/actuator/health, http://localhost:8083/actuator/health
 
 ### 4. Run the Dashboard
 
