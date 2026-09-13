@@ -1,1 +1,32 @@
-/* You can add global styles to this file, and also import other style files */
+/* =============================================
+   InspectIQ Dashboard — Global Styles
+   ============================================= */
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+  background-color: #fafafa;
+}
+
+.content {
+  max-width: 1200px;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+}
+
+/* Reusable card spacing for dashboard sections */
+.section-card {
+  margin-bottom: 1.5rem;
+}
+
+/* Utility: center a block element */
+.centered {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}

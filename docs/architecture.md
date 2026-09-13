@@ -21,7 +21,7 @@ The **dashboard** is a standalone Angular SPA deployed separately and communicat
 | **ingestion-service** | `8081` | Accepts inspection result payloads via `POST /api/v1/inspections`, validates input, and writes records to PostgreSQL. Serves as the sole data-entry point. |
 | **analytics-service** | `8082` | Reads inspection data from PostgreSQL, computes aggregations (yield %, defect distribution, trends), and exposes them via `GET` endpoints for the dashboard. |
 | **alert-service** | `8083` | Periodically measures production yield directly from the shared PostgreSQL schema (one rolling-window aggregate query — no analytics-service dependency), compares it against a configurable threshold (default 95%), and sends Telegram notifications on breach and recovery. |
-| **dashboard** | `4200` | Angular SPA that renders charts (yield over time, defect breakdown, recent inspections) by consuming analytics-service and ingestion-service REST APIs. |
+| **dashboard** | `4200` | Angular SPA that renders charts (yield over time, defect breakdown) and batch/inspection tables by consuming analytics-service and ingestion-service REST APIs. Uses Angular Material for UI components and @swimlane/ngx-charts for visualizations. |
 
 ---
 

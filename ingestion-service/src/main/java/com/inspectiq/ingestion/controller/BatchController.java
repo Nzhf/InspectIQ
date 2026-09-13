@@ -1,11 +1,14 @@
 package com.inspectiq.ingestion.controller;
 
+import com.inspectiq.ingestion.dto.BatchDtos.BatchListItem;
 import com.inspectiq.ingestion.dto.BatchDtos.BatchResponse;
 import com.inspectiq.ingestion.dto.BatchDtos.CreateBatchRequest;
 import com.inspectiq.ingestion.service.BatchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,5 +42,11 @@ public class BatchController {
     @Operation(summary = "Fetch a batch with its pass/fail summary stats")
     public BatchResponse getBatch(@PathVariable UUID id) {
         return batchService.getBatch(id);
+    }
+
+    @GetMapping
+    @Operation(summary = "List production batches with pass/fail summary stats (paginated)")
+    public Page<BatchListItem> listBatches(Pageable pageable) {
+        return batchService.listBatches(pageable);
     }
 }

@@ -40,4 +40,21 @@ public final class BatchDtos {
             long failCount,
             Double passRatePercent) {
     }
+    /**
+     * One row in the paginated batch list (GET /api/v1/batches).
+     * Structurally identical to BatchResponse but kept as a separate record
+     * so the list and detail contracts can evolve independently.
+     */
+    public record BatchListItem(
+            UUID id,
+            String batchCode,
+            String productName,
+            OffsetDateTime startedAt,
+            OffsetDateTime completedAt,
+            String status,
+            long totalInspections,
+            long passCount,
+            long failCount,
+            Double passRatePercent) {
+    }
 }

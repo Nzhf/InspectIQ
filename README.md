@@ -102,13 +102,19 @@ Once running:
 
 ### 4. Run the Dashboard
 
-<!-- TODO: fill in once Angular project is initialised -->
 ```bash
 cd dashboard
 npm install
 npm start
 # Open http://localhost:4200
 ```
+
+The dashboard has three pages:
+- **Overview** — current yield rate, today's inspection count, yield trend chart, defect distribution pie chart, and an optional alert-status banner.
+- **Batches** — paginated table of production batches with pass/fail summaries.
+- **Batch Detail** — drill into a single batch's inspection results.
+
+API base URLs are configured in `dashboard/src/environments/environment.ts` (dev) and `dashboard/src/environments/environment.prod.ts` (prod).
 
 ---
 

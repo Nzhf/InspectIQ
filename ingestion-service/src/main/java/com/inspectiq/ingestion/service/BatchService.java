@@ -1,5 +1,6 @@
 package com.inspectiq.ingestion.service;
 
+import com.inspectiq.ingestion.dto.BatchDtos.BatchListItem;
 import com.inspectiq.ingestion.dto.BatchDtos.BatchResponse;
 import com.inspectiq.ingestion.dto.BatchDtos.CreateBatchRequest;
 import com.inspectiq.ingestion.entity.ProductionBatch;
@@ -8,6 +9,8 @@ import com.inspectiq.ingestion.exception.NotFoundException;
 import com.inspectiq.ingestion.repository.InspectionResultRepository;
 import com.inspectiq.ingestion.repository.ProductionBatchRepository;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,6 +59,11 @@ public class BatchService {
         long passCount = inspectionRepository.countByBatchIdAndResult(id, "PASS");
         long failCount = totalInspections - passCount;
         return toResponse(batch, totalInspections, passCount, failCount);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BatchListItem> listBatches(Pageable pageable) {
+        return batchRepository.findAllWithCounts(pageable);
     }
 
     private BatchResponse toResponse(ProductionBatch batch, long totalInspections, long passCount, long failCount) {
