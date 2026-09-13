@@ -79,13 +79,19 @@ docker compose up -d
 
 ### 3. Run Backend Services
 
-<!-- TODO: fill in once Spring Boot projects are initialised -->
 ```bash
-# Each service is run individually via Gradle:
-# cd ingestion-service && ./gradlew bootRun
+# ingestion-service (implemented — see ingestion-service/README.md for details)
+cd ingestion-service
+./gradlew bootRun        # Windows: gradlew.bat bootRun
+
+# analytics-service and alert-service: coming in later phases
 # cd analytics-service && ./gradlew bootRun
 # cd alert-service && ./gradlew bootRun
 ```
+
+Once running:
+- ingestion-service API: http://localhost:8081 (Swagger UI at http://localhost:8081/swagger-ui.html)
+- Health check: http://localhost:8081/actuator/health
 
 ### 4. Run the Dashboard
 

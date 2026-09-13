@@ -13,6 +13,8 @@
 
 # Gradle build output
 build/
+# Eclipse-style output folders created by some Gradle/IDE builds
+bin/
 !gradle/wrapper/gradle-wrapper.jar
 
 # Gradle cache & local config
@@ -76,3 +78,11 @@ docker-compose.override.yml
 *.swo
 *.bak
 *.tmp
+
+# ---------- Personal agent-instruction docs (not part of the project) ----------
+/AI Agent Directives Enterprise Web Development.md
+/InspectIQ_Build_Prompts.md
+/The_Free-Model_Guardrail_ Custom_Instructions.md
+
+# ---------- Stray local artifact ----------
+/ing
