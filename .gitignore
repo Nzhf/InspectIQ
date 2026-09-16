@@ -79,9 +79,13 @@ docker-compose.override.yml
 *.bak
 *.tmp
 
-# ---------- Personal agent-instruction docs (not part of the project) ----------
+# ---------- Personal agent working notes (not part of the project) ----------
 /AI Agent Directives Enterprise Web Development.md
 /InspectIQ_Build_Prompts.md
+/Phase 4 Implementation Plan.md
+/Phase 5 Completed Recap.md
+/Phase 6 Progress Recap.md
+/Phase 6 Completed Recap.md
 /The_Free-Model_Guardrail_ Custom_Instructions.md
 
 # ---------- Stray local artifact ----------

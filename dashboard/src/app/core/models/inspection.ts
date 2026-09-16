@@ -46,12 +46,16 @@ export interface InspectionResponse {
 }
 
 export interface AlertStatus {
+  telegramEnabled: boolean;
+  yieldThresholdPercent: number;
+  lookbackInspections: number;
+  minInspections: number;
   state: 'OK' | 'ALERT' | 'INSUFFICIENT_DATA';
-  yieldPercent: number | null;
-  thresholdPercent: number;
-  sampleSize: number;
-  lastEvaluatedAt: string | null;
-  lastAlertSentAt: string | null;
+  lastCheckedAt: string | null;
+  lastSampleUnits: number;
+  lastYieldPercent: number | null;
+  lastAlertAt?: string | null;
+  lastAlertType?: string | null;
 }
 
 export interface PageResponse<T> {

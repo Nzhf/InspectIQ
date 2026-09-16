@@ -50,18 +50,66 @@
 
 ---
 
+## Quick Start: the Whole Stack in One Command
+
+Everything — PostgreSQL, the three Spring Boot services and the Angular
+dashboard — runs from the repo root with a single command:
+
+```bash
+cp .env.example .env          # first run only; fill in real values (see below)
+docker compose up --build -d  # build the images and start the whole stack
+```
+
+Compose gates startup on health checks, so once the command returns, every
+service is up:
+
+| URL | What it is |
+|---|---|
+| http://localhost:4200 | Dashboard (Angular SPA served by nginx) |
+| http://localhost:8081 | ingestion-service (Swagger UI at `/swagger-ui.html`) |
+| http://localhost:8082 | analytics-service (Swagger UI at `/swagger-ui.html`) |
+| http://localhost:8083 | alert-service (Swagger UI at `/swagger-ui.html`) |
+| http://localhost:8081/actuator/health | Health check (same path on 8082 / 8083) |
+
+The dashboard calls the backends through **its own origin** — nginx
+reverse-proxies `/api/ingestion/`, `/api/analytics/` and `/api/alerts/` to the
+service containers — so no CORS preflight is needed in the containerised stack.
+
+Credentials are read from `.env` via `${VAR:-default}` interpolation: the
+compose file never holds a real secret, and an empty `.env` still boots a local
+dev stack. Note that an empty `DEVICE_API_KEY` leaves the write endpoints
+unprotected (a warning is logged at startup) — set it before exposing the
+service beyond localhost.
+
+### Verify the stack end to end
+
+With the stack up, the smoke test drives the full quality pipeline — create a
+batch, post 200 inspections (170 PASS / 30 FAIL), verify the analytics
+aggregates, then check the alert breach → recovery cycle:
+
+```powershell
+.\e2e-smoke.ps1        # Windows PowerShell; run from the repo root
+```
+
+Step-by-step curl equivalents and the expected numbers are in
+[`docs/e2e-test-scenario.md`](docs/e2e-test-scenario.md). After a code change,
+re-run `docker compose up --build -d` to rebuild; `docker compose down -v`
+removes the containers **and** the database volume.
+
+---
 ## How to Run Locally
 
 ### Prerequisites
 
-<!-- TODO: expand in later phases -->
-- Java 17+ (JDK)
-- Node.js 18+ and npm
-- Docker & Docker Compose
-- A PostgreSQL instance (or use the Docker Compose setup)
-- A Telegram Bot token (for alert-service)
+- Docker & Docker Compose (the supported way to run the stack)
+- Java 17+ (JDK) and Node.js 18+ with npm — only needed for the host-run
+  workflow below, not for `docker compose`
+- A Telegram Bot token (for alert-service notifications; optional)
 
 ### 1. Clone & Configure
+
+Clone the repository and set up the environment (also covered in [Quick
+Start](#quick-start-the-whole-stack-in-one-command) above):
 
 ```bash
 git clone <repository-url>
@@ -70,27 +118,34 @@ cp .env.example .env
 # Fill in the real values in .env — see the comments inside .env.example
 ```
 
-### 2. Start Infrastructure (Database)
+### 2. Start the Stack
 
-<!-- TODO: fill in once docker-compose.yml is configured -->
+The supported path is the containerised stack (covers the database and all
+services — see [Quick Start](#quick-start-the-whole-stack-in-one-command)):
+
 ```bash
-docker compose up -d
+docker compose up --build -d
 ```
 
-### 3. Run Backend Services
+### 3. Run Backend Services on the Host (optional)
+
+Prefer `docker compose` above: the repo pins `gradle:8.10-jdk17` inside the
+service images because the repo ships no Gradle wrapper and a host-global
+Gradle 9.x cannot run the Spring Boot 3.2.5 Gradle plugin (`bootJar`/`bootRun`
+fail). Use the host workflow below only with a Gradle 8.x toolchain installed.
 
 ```bash
 # ingestion-service (implemented — see ingestion-service/README.md for details)
 cd ingestion-service
-./gradlew bootRun        # Windows: gradlew.bat bootRun
+JAVA_HOME=<path-to-JDK-17> gradle bootRun   # Gradle 8.x toolchain; the repo has no wrapper (`gradlew` will NOT work), and host Gradle 9.x cannot run the Spring Boot 3.2.5 plugin
 
 # analytics-service (implemented — see analytics-service/README.md for details)
 cd ../analytics-service
-./gradlew bootRun        # Windows: gradlew.bat bootRun
+gradle bootRun                      # same Gradle 8.x requirement as above
 
 # alert-service (implemented — see alert-service/README.md for details)
 cd ../alert-service
-./gradlew bootRun        # Windows: gradlew.bat bootRun
+gradle bootRun                      # same Gradle 8.x requirement as above
 ```
 
 Once running:

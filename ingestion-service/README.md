@@ -66,17 +66,28 @@ Errors are returned as RFC 7807 `application/problem+json` with clear messages (
 ## Testing
 
 ```bash
-./gradlew test                                        # unit tests (no Docker needed)
-./gradlew test -Dtestcontainers.enabled=true          # + integration test (needs Docker)
+gradle test                                           # unit tests (no Docker needed; needs a Gradle 8.x toolchain, see above)
+gradle test -Dtestcontainers.enabled=true             # + integration test (needs Docker)
 ```
 
 The integration test spins up a real PostgreSQL 16 container via Testcontainers, runs the Flyway migrations, and posts an inspection end-to-end through the HTTP API.
 
-## Mock data generator
+## End-to-end verification
 
-`generate-mock-data.ps1` simulates inspection stations posting realistic batches (configurable fail rate, defect mix, station IDs):
+There is no standalone mock-data script. The realistic data generator is the
+**end-to-end smoke test** at the repo root, `e2e-smoke.ps1`, which drives the
+whole stack exactly like a pair of AOI stations would:
 
 ```powershell
-cd ingestion-service
-.\generate-mock-data.ps1 -ApiKey "your-device-key" -Batches 3 -UnitsPerBatch 40
+# Stack must already be up: docker compose up --build -d
+pwsh -File ..\e2e-smoke.ps1        # or: powershell -ExecutionPolicy Bypass -File ..\e2e-smoke.ps1
 ```
+
+It creates a batch, posts 200 inspections (170 PASS / 30 FAIL across three
+defect codes), then verifies the analytics aggregates, the batch summary, and
+the alert breach/recovery cycle. The curl-by-curl equivalent, with the expected
+numbers, is documented in [`docs/e2e-test-scenario.md`](../docs/e2e-test-scenario.md).
+
+Every request it sends goes through the public HTTP surface of this service on
+port `8081` (or through the dashboard's nginx proxy on `4200`), so it doubles as
+a test of the device API key and the validation rules described above.

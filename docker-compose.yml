@@ -1,12 +1,22 @@
-# =============================================
-# InspectIQ — Docker Compose (Local Development)
-# =============================================
-# This file will be expanded as services are built.
-# For now it provides the PostgreSQL database only.
-# =============================================
+# ============================================================================
+# InspectIQ — Docker Compose (full local stack)
+# ============================================================================
+# Runs Postgres + the three Spring Boot services + the Angular dashboard
+# with a single command:
+#
+#     docker compose up --build -d
+#
+# Credentials come from the root .env via ${VAR:-default} interpolation:
+# real .env values always win, nothing secret is written into this file, and
+# the defaults below exist only so an empty .env still boots a local dev
+# stack. NEVER use the default credentials for a public deployment.
+#
+# Container-to-container DB host is the compose service name "postgres" —
+# this is why the JDBC URLs are composed here rather than reusing the .env
+# *_DB_URL values (those target localhost for host-run service workflows).
 
 services:
-  # --- PostgreSQL ---
+  # --------------------------- PostgreSQL -----------------------------
   postgres:
     image: postgres:16-alpine
     container_name: inspectiq-postgres
@@ -19,15 +29,118 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-inspectiq_dev}
     volumes:
       - inspectiq-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-  # --- ingestion-service ---
-  # TODO: add once Spring Boot project is initialised
+  # ------------------------- ingestion-service ------------------------
+  # Owns the schema: runs the Flyway migrations on startup.
+  ingestion-service:
+    build: ./ingestion-service
+    container_name: inspectiq-ingestion
+    restart: unless-stopped
+    ports:
+      - "${INGESTION_SERVICE_PORT:-8081}:8081"
+    environment:
+      INGESTION_SERVICE_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-inspectiq}
+      INGESTION_SERVICE_DB_USER: ${POSTGRES_USER:-inspectiq}
+      INGESTION_SERVICE_DB_PASSWORD: ${POSTGRES_PASSWORD:-inspectiq_dev}
+      DEVICE_API_KEY: ${DEVICE_API_KEY:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4200}
+      HIBERNATE_SHOW_SQL: ${HIBERNATE_SHOW_SQL:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
 
-  # --- analytics-service ---
-  # TODO: add once Spring Boot project is initialised
+  # -------------------------- analytics-service ------------------------
+  analytics-service:
+    build: ./analytics-service
+    container_name: inspectiq-analytics
+    restart: unless-stopped
+    ports:
+      - "${ANALYTICS_SERVICE_PORT:-8082}:8082"
+    environment:
+      ANALYTICS_SERVICE_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-inspectiq}
+      ANALYTICS_SERVICE_DB_USER: ${POSTGRES_USER:-inspectiq}
+      ANALYTICS_SERVICE_DB_PASSWORD: ${POSTGRES_PASSWORD:-inspectiq_dev}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4200}
+      HIBERNATE_SHOW_SQL: ${HIBERNATE_SHOW_SQL:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ingestion-service:
+        # schema must exist before the analytics queries can run
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:8082/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
 
-  # --- alert-service ---
-  # TODO: add once Spring Boot project is initialised
+  # ---------------------------- alert-service --------------------------
+  alert-service:
+    build: ./alert-service
+    container_name: inspectiq-alert
+    restart: unless-stopped
+    ports:
+      - "${ALERT_SERVICE_PORT:-8083}:8083"
+    environment:
+      ALERT_SERVICE_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-inspectiq}
+      ALERT_SERVICE_DB_USER: ${POSTGRES_USER:-inspectiq}
+      ALERT_SERVICE_DB_PASSWORD: ${POSTGRES_PASSWORD:-inspectiq_dev}
+      ALERT_YIELD_THRESHOLD_PERCENT: ${ALERT_YIELD_THRESHOLD_PERCENT:-95.0}
+      ALERT_LOOKBACK_INSPECTIONS: ${ALERT_LOOKBACK_INSPECTIONS:-200}
+      ALERT_MIN_INSPECTIONS: ${ALERT_MIN_INSPECTIONS:-20}
+      ALERT_CHECK_INTERVAL_MS: ${ALERT_CHECK_INTERVAL_MS:-60000}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      TELEGRAM_BOT_API_BASE_URL: ${TELEGRAM_BOT_API_BASE_URL:-https://api.telegram.org}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4200}
+      HIBERNATE_SHOW_SQL: ${HIBERNATE_SHOW_SQL:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ingestion-service:
+        # schema must exist before the yield window query can run
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:8083/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+
+  # ------------------------------ dashboard ----------------------------
+  # Angular SPA served by nginx; /api/{ingestion,analytics,alerts}/ are
+  # reverse-proxied to the three services (see dashboard/nginx.conf).
+  dashboard:
+    build: ./dashboard
+    container_name: inspectiq-dashboard
+    restart: unless-stopped
+    ports:
+      - "4200:80"
+    depends_on:
+      ingestion-service:
+        condition: service_healthy
+      analytics-service:
+        condition: service_healthy
+      alert-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
 volumes:
   inspectiq-pgdata:

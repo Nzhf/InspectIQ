@@ -12,9 +12,9 @@ import { AlertStatus } from '../../../core/models/inspection';
       <mat-card-content>
         <strong>Alert Status:</strong>
         <ng-container [ngSwitch]="status()?.state">
-          <span *ngSwitchCase="'OK'">Yield is within threshold ({{ status()?.thresholdPercent | number: '1.1-1' }}%)</span>
-          <span *ngSwitchCase="'ALERT'" class="alert-text">Yield has dropped below threshold! Current: {{ status()?.yieldPercent != null ? (status()?.yieldPercent | number: '1-1') + '%' : 'N/A' }}</span>
-          <span *ngSwitchCase="'INSUFFICIENT_DATA'">Not enough data to evaluate ({{ status()?.sampleSize }} samples)</span>
+          <span *ngSwitchCase="'OK'">Yield is within threshold ({{ status()?.yieldThresholdPercent | number: '1.1-1' }}%)</span>
+          <span *ngSwitchCase="'ALERT'" class="alert-text">Yield has dropped below threshold! Current: {{ status()?.lastYieldPercent != null ? (status()?.lastYieldPercent | number: '1-1') + '%' : 'N/A' }}</span>
+          <span *ngSwitchCase="'INSUFFICIENT_DATA'">Not enough data to evaluate ({{ status()?.lastSampleUnits }} samples)</span>
         </ng-container>
       </mat-card-content>
     </mat-card>

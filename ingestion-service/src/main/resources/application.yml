@@ -9,7 +9,9 @@ spring:
     hibernate:
       # Schema is owned by Flyway migrations — Hibernate must never alter it
       ddl-auto: validate
-    show-sql: true
+    # SQL logging is helpful locally but noisy in containers, so it defaults
+    # off; set HIBERNATE_SHOW_SQL=true to echo statements when debugging.
+    show-sql: ${HIBERNATE_SHOW_SQL:false}
     open-in-view: false
   flyway:
     enabled: true

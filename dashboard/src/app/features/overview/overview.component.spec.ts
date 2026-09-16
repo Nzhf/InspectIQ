@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+﻿import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { of, throwError } from 'rxjs';
@@ -45,16 +45,17 @@ describe('OverviewComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should show error banner when API fails', fakeAsync(() => {
+    it('shows the error banner when the summary request fails', async () => {
     analyticsSpy.getSummary.mockReturnValue(throwError(() => ({ status: 500 })));
     fixture.detectChanges();
-    tick();
+    await fixture.whenStable();
     fixture.detectChanges();
+    expect(component.error()).toBe(
+      'Server error (500) — please try again later.',
+    );
+  });
 
-    expect(component.error()).toBeTruthy();
-  }));
-
-  it('should populate summary when API succeeds', fakeAsync(() => {
+  it('should populate summary when API succeeds', async () => {
     const mockSummary = {
       totalUnits: 50,
       totalPasses: 48,
@@ -63,12 +64,10 @@ describe('OverviewComponent', () => {
       totalBatches: 2,
     };
     (analyticsSpy.getSummary as MockFn).mockReturnValue(of(mockSummary));
-
     fixture.detectChanges();
-    tick();
+    await fixture.whenStable();
     fixture.detectChanges();
-
     expect(component.summary()).toEqual(mockSummary);
     expect(component.loading()).toBeFalsy();
-  }));
+  });
 });

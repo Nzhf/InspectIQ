@@ -22,9 +22,14 @@ public interface ProductionBatchRepository extends JpaRepository<ProductionBatch
      * JPA providers and let Spring Data JPA derive the count query for pagination
      * automatically. The pass rate is computed here so the service layer receives
      * a fully-hydrated record with no post-processing.
+     *
+     * WHY the '$' in the constructor target: Hibernate 6 resolves HQL constructor
+     * classes by their exact binary name, so a nested record must be referenced as
+     * Outer$Inner — the dotted form silently fails at context startup ("Could not
+     * resolve class ... named for instantiation") inside a Spring Boot fat jar.
      */
     @Query("""
-            SELECT new com.inspectiq.ingestion.dto.BatchDtos.BatchListItem(
+            SELECT new com.inspectiq.ingestion.dto.BatchDtos$BatchListItem(
                 b.id,
                 b.batchCode,
                 b.productName,

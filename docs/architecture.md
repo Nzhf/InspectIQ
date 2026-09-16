@@ -88,6 +88,68 @@ AOI Station / Test Client
 
 ---
 
+## Production Monitoring (next step)
+
+Phase 6 ships the stack with **liveness only**: each service exposes
+`/actuator/health`, and `docker compose` uses it for container healthchecks. That
+tells you a process is up, but nothing about *how* it is behaving. The next step
+answers "is the system healthy in the product sense?" — the pieces below are the
+pragmatic path, in order of value.
+
+### 1. Metrics — Micrometer + Prometheus + Grafana
+
+- The services are Spring Boot, so **Micrometer** is already on the classpath
+  through Actuator. Expose it by adding `prometheus` to the actuator exposure
+  list plus the `micrometer-registry-prometheus` dependency; each service then
+  serves a scrape endpoint at `/actuator/prometheus`.
+- Beyond automatic JVM/HTTP metrics (`http_server_requests_seconds`, GC,
+  connection-pool saturation), add **domain gauges** that matter here:
+  inspections ingested per minute, rolling yield percent, and *seconds since the
+  last inspection received* — a silent station is a real production failure and
+  it is invisible to a liveness probe.
+- **Prometheus** scrapes the three endpoints; **Grafana** holds one dashboard
+  per concern: request latency/error rate per service, ingestion throughput, and
+  the yield trend drawn against the alert threshold.
+- Alerting then moves from "the process is down" to symptom-based rules
+  (error-rate burn, ingestion stalled, yield below threshold) via Alertmanager —
+  complementing, not replacing, the in-app yield monitor built in Phase 4.
+
+### 2. Logs — structured JSON → Loki (or ELK)
+
+- Today logs go to stdout via Logback. That is fine for `docker compose logs`
+  but not queryable across containers. Switch the console encoder to **JSON**
+  (e.g. `logstash-logback-encoder`) so every line carries timestamp, level,
+  logger, message and MDC fields instead of free text.
+- The highest-value addition is **correlation**: put a request id in the MDC at
+  the edge (nginx or a servlet filter) and stamp it on every log line, so one
+  browser action can be traced across ingestion → analytics → alert.
+- **Loki + Promtail** (or Filebeat → Elasticsearch when full-text search is
+  needed) indexes the stream, and Grafana renders those logs next to the metrics
+  from step 1 on the same timeline — which is what makes incident triage fast.
+- With JSON logs, `HIBERNATE_SHOW_SQL` should stay `false` in shipped
+  containers (already the default there — see `.env.example`) so SQL noise does
+  not drown the signal.
+
+### 3. Synthetic uptime checks
+
+- Metrics and logs are *passive*: they describe what happened, not what a user
+  experiences right now. Add a small synthetic probe that walks the real user
+  path on a schedule:
+  1. `GET http://<host>:4200/` → SPA shell `200`
+  2. `GET /api/analytics/api/v1/dashboard/summary` through the nginx proxy
+  3. `GET /actuator/health` on 8081 / 8082 / 8083
+- Run it from **outside** the compose network (a hosted checker or a cron
+  container) so it catches edge failures — TLS expiry, DNS, nginx — that an
+  in-cluster probe would miss. [`e2e-smoke.ps1`](../e2e-smoke.ps1) and
+  [`docs/e2e-test-scenario.md`](e2e-test-scenario.md) are already the functional
+  core of that probe; the production version is the same steps on a timer with
+  alerting on failure.
+- A cheap third layer is **uptime monitoring with content assertions** (expect
+  the summary JSON to contain `totalUnits`), which distinguishes "the endpoint
+  answers" from "the endpoint answers *correctly*".
+
+---
+
 ## Future Considerations
 
 - Replace synchronous REST calls with an async event bus for ingestion → analytics flow.

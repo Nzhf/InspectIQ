@@ -1,144 +1,74 @@
-# Implementation Plan — Phase 5: Angular Dashboard
+# Implementation Plan — Phase 6: Integration, Security Review & Testing Hardening
 
 ## Overview
 
-Build an Angular 21 dashboard that visualizes quality data from `analytics-service` and lets the user browse production batches and inspection history from `ingestion-service`. The dashboard uses Angular Material for UI components, `@swimlane/ngx-charts` (already installed) for charts, a typed `HttpClient` service layer, and `environment.ts`/`environment.prod.ts` for API base URLs. A small alert-status banner is included but gated behind a feature flag. A new paginated `GET /api/v1/batches` endpoint is added to `ingestion-service` to back the Batches list page.
+All four InspectIQ components exist and work individually. Phase 6 makes them work **together** and hardens the system as a whole — no new product features.
 
-## Types
+1. **Dockerize the full stack** — a `docker-compose.yml` that runs Postgres + ingestion-service + analytics-service + alert-service + the Angular dashboard with one command, referencing `.env` for all credentials (no secrets duplicated into the compose file).
+2. **E2E test scenario** — a step-by-step manual test script in `docs/e2e-test-scenario.md`: create batch → post inspections incl. failures → verify analytics yield → verify an alert breach → verify the dashboard renders it all.
+3. **Security review** — `docs/security-review.md`: secrets (incl. git history), input validation, parameterized queries, CORS scope, API keys actually enforced. **Fix gaps found.**
+4. **Health checks** — confirm all `/actuator/health` endpoints; add a "production monitoring" note to `docs/architecture.md`.
 
-**`dashboard/src/app/core/models/inspection.ts`** (new)
-```ts
-export interface DashboardSummary {
-  totalUnits: number;
-  totalPasses: number;
-  totalFails: number;
-  yieldPercent: number | null;
-  totalBatches: number;
-}
+## Docker build strategy (key decision)
 
-export interface YieldPoint {
-  bucket: string;
-  totalUnits: number;
-  passCount: number;
-  failCount: number;
-  yieldPercent: number | null;
-}
-
-export interface DefectDistributionItem {
-  code: string;
-  description: string;
-  count: number;
-  percentOfFails: number | null;
-}
-
-export interface BatchListItem {
-  id: string;
-  batchCode: string;
-  productName: string;
-  startedAt: string;
-  completedAt: string | null;
-  status: string;
-  totalInspections: number;
-  passCount: number;
-  failCount: number;
-  passRatePercent: number | null;
-}
-
-export interface BatchDetail extends BatchListItem {}
-
-export interface InspectionResponse {
-  id: string;
-  batchId: string;
-  result: string;
-  inspectedAt: string;
-  defectTypeCode: string | null;
-  rawData: Record<string, unknown> | null;
-}
-
-export interface AlertStatus {
-  state: 'OK' | 'ALERT' | 'INSUFFICIENT_DATA';
-  yieldPercent: number | null;
-  thresholdPercent: number;
-  sampleSize: number;
-  lastEvaluatedAt: string | null;
-  lastAlertSentAt: string | null;
-}
-
-export interface PageResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  number: number;
-  size: number;
-}
-```
+- No Gradle wrapper exists in any service; the **host global Gradle 9.6.1 is incompatible with the Spring Boot 3.2.5 plugin** (`bootJar`/`bootRun` fail locally — documented in the Phase 4 recap).
+- Fix: build each Spring Boot service inside the official **`gradle:8.10-jdk17`** image (`gradle bootJar --no-daemon -x test`), runtime on **`eclipse-temurin:17-jre-alpine`**.
+  - WHY `-x test`: unit tests stay a local/CI concern (`gradle test`), and the ingestion integration test uses Testcontainers which needs a Docker socket not mounted into builds.
+- Dashboard: **`node:22-alpine`** build (`npm ci` → `npm run build`) → **`nginx:1.27-alpine`** serving `dist/dashboard/browser`, reverse-proxying `/api/ingestion|analytics|alerts/` to the backend service names.
+- `docker-compose.yml` credentials use `${VAR:-dev-default}` interpolation — `.env` values always win; defaults make an empty `.env` boot a local dev stack.
+- Compose-internal DB host is the compose service name `postgres`, so each service's JDBC URL is composed in the compose file rather than reusing the `.env` `*_DB_URL` (those target `localhost` for host-run workflows).
 
 ## Files
 
-### New files
-
+### New
 | Path | Purpose |
 |---|---|
-| `dashboard/src/environments/environment.ts` | Dev config with API base URLs + feature flag |
-| `dashboard/src/environments/environment.prod.ts` | Prod config |
-| `dashboard/src/app/core/models/inspection.ts` | All frontend DTO interfaces |
-| `dashboard/src/app/core/services/analytics.service.ts` | Typed wrapper over analytics-service |
-| `dashboard/src/app/core/services/ingestion.service.ts` | Typed wrapper over ingestion-service |
-| `dashboard/src/app/core/services/alert.service.ts` | Typed wrapper over alert-service |
-| `dashboard/src/app/core/services/error-handler.service.ts` | Maps HTTP errors to friendly messages |
-| `dashboard/src/app/shared/components/loading-spinner.component.ts` | Spinner shown during API calls |
-| `dashboard/src/app/shared/components/error-alert.component.ts` | Error banner shown on API failure |
-| `dashboard/src/app/features/overview/overview.component.ts` | Overview page: KPI cards + charts + alert banner |
-| `dashboard/src/app/features/overview/components/kpi-cards.component.ts` | KPI card components |
-| `dashboard/src/app/features/overview/components/yield-trend-chart.component.ts` | ngx-charts yield trend |
-| `dashboard/src/app/features/overview/components/defect-pie-chart.component.ts` | ngx-charts defect pie |
-| `dashboard/src/app/features/overview/components/alert-banner.component.ts` | Alert status banner (gated) |
-| `dashboard/src/app/features/batches/batches.component.ts` | Batches table with pagination |
-| `dashboard/src/app/features/batches/batch-detail.component.ts` | Batch detail + inspection table |
+| `ingestion-service/Dockerfile` + `.dockerignore` | Multi-stage build (gradle:8.10 → temurin 17 JRE) |
+| `analytics-service/Dockerfile` + `.dockerignore` | Same, port 8082 |
+| `alert-service/Dockerfile` + `.dockerignore` | Same, port 8083 |
+| `dashboard/Dockerfile` + `.dockerignore` | Angular build → nginx SPA host |
+| `dashboard/nginx.conf` | SPA fallback + `/api/...` reverse proxies + security headers |
+| `docker-compose.yml` | Full stack: postgres + 3 services + dashboard, healthchecks, `.env`-driven |
+| `docs/e2e-test-scenario.md` | Step-by-step manual test script (curl, platform-agnostic) |
+| `docs/security-review.md` | Audit findings per pillar + fixes applied |
+| `docs/adr/0003-service-communication.md` | ADR for the actual shared-database read model decision (was a committed Phase 3 deliverable, never written) |
 
-### Modified files
-
+### Modified
 | Path | Change |
 |---|---|
-| `dashboard/package.json` | Add `@angular/material` dependency |
-| `dashboard/angular.json` | Add Material prebuilt theme to styles |
-| `dashboard/src/app/app.routes.ts` | Add 3 routes |
-| `dashboard/src/app/app.config.ts` | Add provideHttpClient, provideAnimations |
-| `dashboard/src/app/app.component.ts` | Toolbar + router-outlet |
-| `dashboard/src/app/app.component.html` | Toolbar template |
-| `dashboard/src/app/app.spec.ts` | Update for new template |
-| `dashboard/src/styles.css` | Global styles + Material theme |
-| `dashboard/README.md` | Phase 5 documentation |
-| `ingestion-service/.../BatchDtos.java` | Add BatchListItem record |
-| `ingestion-service/.../ProductionBatchRepository.java` | Add findAllWithCounts query |
-| `ingestion-service/.../BatchService.java` | Add listBatches method |
-| `ingestion-service/.../BatchController.java` | Add GET /api/v1/batches endpoint |
-| `docs/architecture.md` | Add dashboard to architecture |
-| `README.md` (root) | Add dashboard run instructions |
+| `ingestion/analytics/alert …/application.yml` | `show-sql` → `${HIBERNATE_SHOW_SQL:false}` (env-driven, off by default) |
+| `docs/architecture.md` | "Production Monitoring (next step)" section |
+| `README.md` (root) | `docker compose up --build -d` quick-start section |
+| `.env.example` | Note compose usage; add `HIBERNATE_SHOW_SQL` |
+| `ingestion-service/README.md` | Remove stale reference to `generate-mock-data.ps1` (never existed); point to e2e doc |
+| `implementation_plan.md` | This plan |
 
 ## Implementation Order
 
-1. Add `BatchListItem` record to `BatchDtos.java`
-2. Add `findAllWithCounts(Pageable)` to `ProductionBatchRepository.java`
-3. Add `listBatches(Pageable)` to `BatchService.java`
-4. Add `GET /api/v1/batches?page&size` to `BatchController.java`
-5. Verify: `gradle compileJava`
-6. Add `@angular/material` to `package.json` + `npm install`
-7. Add Material theme to `angular.json`
-8. Create `environments/environment.ts` and `environment.prod.ts`
-9. Create `core/models/inspection.ts`
-10. Create `core/services/analytics.service.ts`, `ingestion.service.ts`, `alert.service.ts`
-11. Create `core/services/error-handler.service.ts`
-12. Update `app.config.ts` with `provideHttpClient()`, `provideAnimations()`
-13. Update `app.component.ts` + `app.component.html` with toolbar + nav
-14. Update `styles.css`
-15. Create `shared/components/loading-spinner.component.ts`
-16. Create `shared/components/error-alert.component.ts`
-17-21. Create Overview page components
-22-23. Create Batches page components
-24. Update `app.routes.ts`
-25. Update `app.spec.ts`
-26. Run `ng build`
-27. Run `ng test`
-28-30. Documentation
-31. Commit and push
+1. Persist this plan; commit pending dashboard polish (4 files) as housekeeping.
+2. Confirm Docker daemon (`docker info`).
+3. Create the 4 Dockerfiles + `.dockerignore`s + `nginx.conf`.
+4. Rewrite `docker-compose.yml`; validate `docker compose config`.
+5. Build images one service at a time (`docker compose build <svc>`).
+6. `docker compose up -d` → wait healthy → smoke /actuator/health x3 + dashboard 200.
+7. Execute the e2e scenario against the live stack; fix anything that breaks.
+8. Write `docs/e2e-test-scenario.md` mirroring the verified steps.
+9. Security review → `docs/security-review.md` + apply the small gap fixes (show-sql flag, ADR 0003, stale README ref, nginx headers already in step 4).
+10. Update `docs/architecture.md` (monitoring note) + root `README.md` + `.env.example`.
+11. Re-verify: rebuild, rerun e2e, `gradle test` (unit) x3, dashboard `ng build` in-image.
+12. Single commit `feat: dockerize stack + integration & security hardening (Phase 6)` → push
+13. `Phase 6 Completed Recap.md` with technical + non-technical summaries.
+
+## Verification Checklist
+
+- `docker compose config` valid; `docker compose up --build -d` healthy (`docker compose ps`).
+- `/actuator/health` → `UP` on 8081/8082/8083; dashboard 200 on `:4200`.
+- E2E: batch → inspections (incl. fails) → analytics matches → alert `ALERT`→`OK` → dashboard renders.
+- `gradle test` green per service (unit, no Docker needed); dashboard `ng build` green in image.
+- No secrets in new/changed files (confirmed by review + git scan).
+
+## Open Items / Notes
+
+- `.env` has inline comments (e.g. `ALERT_YIELD_THRESHOLD_PERCENT=95.0   # …`) which Compose may misparse — verify with `docker compose config` and clean `.env` inline comments if needed (not tracked).
+- `.env` has empty `POSTGRES_USER`/`POSTGRES_PASSWORD`/`DEVICE_API_KEY` → compose dev defaults apply; e2e still demonstrates the 401 path.
+- Docker Desktop must be running before `docker compose up`.
